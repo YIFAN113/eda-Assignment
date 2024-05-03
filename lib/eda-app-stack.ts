@@ -56,8 +56,8 @@ export class EDAAppStack extends cdk.Stack {
       displayName: "New Image topic",
     }); 
 
-    const deleteImageTopic = new sns.Topic(this, "DeleteImageTopic", {
-      displayName: "Delete Image topic",
+    const updateImageTopic = new sns.Topic(this, "UpdateImageTopic", {
+      displayName: "Update Image topic",
     });
 
 
@@ -79,6 +79,21 @@ export class EDAAppStack extends cdk.Stack {
     }
   );
 
+
+  const updateImageFn = new lambdanode.NodejsFunction(
+    this,
+    "UpdateImage",
+    {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      entry: `${__dirname}/../lambdas/processUpdate.ts`,
+      timeout: cdk.Duration.seconds(15),
+      memorySize: 128,
+      environment: {
+        TABLE_NAME: imagesTable.tableName,
+        REGION: 'eu-west-1',
+      },
+    }
+  );
   const deleteImageFn = new lambdanode.NodejsFunction(
     this,
     "DeleteImageFn",
@@ -116,7 +131,7 @@ export class EDAAppStack extends cdk.Stack {
 
 imagesBucket.addEventNotification(
   s3.EventType.OBJECT_REMOVED,
-  new s3n.SnsDestination(deleteImageTopic)
+  new s3n.SnsDestination(updateImageTopic)
 )
 
 newImageTopic.addSubscription(
@@ -127,8 +142,22 @@ newImageTopic.addSubscription(
  // newImageTopic.addSubscription(
    // new subs.SqsSubscription(badImagesQueue));
 
-   deleteImageTopic.addSubscription(
-    new subs.LambdaSubscription(deleteImageFn));
+   updateImageTopic.addSubscription(new subs.LambdaSubscription(deleteImageFn,{
+    filterPolicy: {
+      comment_type: sns.SubscriptionFilter.stringFilter({
+          allowlist: ['Process Delete']
+      }),
+    },
+  }));
+  updateImageTopic.addSubscription(
+    new subs.LambdaSubscription(updateImageFn, {
+        filterPolicy: {
+          comment_type: sns.SubscriptionFilter.stringFilter({
+              allowlist: ['Update Table']
+          }),
+        },
+    })
+  );
 
  // SQS --> Lambda
   const newImageEventSource = new events.SqsEventSource(imageProcessQueue, {
@@ -183,7 +212,7 @@ newImageTopic.addSubscription(
   });
 
   new cdk.CfnOutput(this, "topicARN", {
-    value: deleteImageTopic.topicArn,
+    value: updateImageTopic.topicArn,
   });
   }
 

@@ -39,12 +39,14 @@ export const handler: SQSHandler = async (event) => {
             Key: srcKey,
           };
           const origimage = await s3.send(new GetObjectCommand(params));
+          const imageDesc  = "";
           // Process the image ......
           const commandOutput = await ddbDocClient.send(
             new PutCommand({
               TableName: process.env.TABLE_NAME,
               Item: {
-                "imageName": srcKey
+                "imageName": srcKey,
+                "description": imageDesc,
               }
             })
           )
