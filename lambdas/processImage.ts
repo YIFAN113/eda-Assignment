@@ -29,15 +29,16 @@ export const handler: SQSHandler = async (event) => {
         if (!srcKey.toLowerCase().endsWith('.jpeg') && !srcKey.toLowerCase().endsWith('.png')) {
           console.error("Unsupported file type for key: ", srcKey);
           throw new Error(`Unsupported image type: ${srcKey}`);
+          
         }
-        let origimage = null;
+        
         try {
           // Download the image from the S3 source bucket.
           const params: GetObjectCommandInput = {
             Bucket: srcBucket,
             Key: srcKey,
           };
-          origimage = await s3.send(new GetObjectCommand(params));
+          const origimage = await s3.send(new GetObjectCommand(params));
           // Process the image ......
           const commandOutput = await ddbDocClient.send(
             new PutCommand({

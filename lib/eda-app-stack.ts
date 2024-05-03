@@ -45,12 +45,12 @@ export class EDAAppStack extends cdk.Stack {
       deadLetterQueue: {
         queue: badImagesQueue,
         // # of rejections by consumer (lambda function)
-        maxReceiveCount: 2,
+        maxReceiveCount: 1,
       }
     });
-    const mailerQ = new sqs.Queue(this, "mailer-queue", {
-      receiveMessageWaitTime: cdk.Duration.seconds(10),
-    });
+   // const mailerQ = new sqs.Queue(this, "mailer-queue", {
+   //   receiveMessageWaitTime: cdk.Duration.seconds(10),
+   // });
 
     const newImageTopic = new sns.Topic(this, "NewImageTopic", {
       displayName: "New Image topic",
@@ -72,6 +72,7 @@ export class EDAAppStack extends cdk.Stack {
       environment: {
         TABLE_NAME: imagesTable.tableName,
         REGION: 'eu-west-1',
+        BAD_IMAGES_QUEUE_URL: badImagesQueue.queueUrl,
       }
     }
   );
@@ -98,9 +99,9 @@ newImageTopic.addSubscription(
   new subs.SqsSubscription(imageProcessQueue)
 );
 newImageTopic.addSubscription(
-  new subs.SqsSubscription(mailerQ));
-  newImageTopic.addSubscription(
-    new subs.SqsSubscription(badImagesQueue));
+  new subs.LambdaSubscription (confirmationMailerFn));
+ // newImageTopic.addSubscription(
+   // new subs.SqsSubscription(badImagesQueue));
 
 
 
@@ -110,10 +111,10 @@ newImageTopic.addSubscription(
     maxBatchingWindow: cdk.Duration.seconds(10),
   });
 
-  const newImageMailEventSource = new events.SqsEventSource(mailerQ, {
-    batchSize: 5,
-    maxBatchingWindow: cdk.Duration.seconds(10),
-  }); 
+//  const newImageMailEventSource = new events.SqsEventSource(mailerQ, {
+ //   batchSize: 5,
+  //  maxBatchingWindow: cdk.Duration.seconds(10),
+ // }); 
 
   const failedImageEventSource = new events.SqsEventSource(badImagesQueue, {
     batchSize: 5,
@@ -121,7 +122,7 @@ newImageTopic.addSubscription(
   })
 
   processImageFn.addEventSource(newImageEventSource);
-  confirmationMailerFn.addEventSource(newImageMailEventSource);
+ // confirmationMailerFn.addEventSource(newImageMailEventSource);
   rejectionMailerFn.addEventSource(failedImageEventSource);
   // Permissions
   imagesBucket.grantRead(processImageFn);

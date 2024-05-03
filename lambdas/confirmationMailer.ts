@@ -1,4 +1,4 @@
-import { SQSHandler } from "aws-lambda";
+import { SNSHandler } from "aws-lambda";
 // import AWS from 'aws-sdk';
 import { SES_EMAIL_FROM, SES_EMAIL_TO, SES_REGION } from "../env";
 import {
@@ -6,6 +6,7 @@ import {
   SendEmailCommand,
   SendEmailCommandInput,
 } from "@aws-sdk/client-ses";
+import { CfnSecurityKey } from "aws-cdk-lib/aws-connect";
 
 if (!SES_EMAIL_TO || !SES_EMAIL_FROM || !SES_REGION) {
   throw new Error(
@@ -21,19 +22,20 @@ type ContactDetails = {
 
 const client = new SESClient({ region: SES_REGION});
 
-export const handler: SQSHandler = async (event: any) => {
+export const handler: SNSHandler = async (event: any) => {
   console.log("Event ", JSON.stringify(event));
   for (const record of event.Records) {
-    const recordBody = JSON.parse(record.body);
-    const snsMessage = JSON.parse(recordBody.Message);
+    const snsMessage = JSON.parse(record.Sns.Message);
 
     if (snsMessage.Records) {
-      console.log("Record body ", JSON.stringify(snsMessage));
+      console.log("Record Sns ", JSON.stringify(snsMessage));
       for (const messageRecord of snsMessage.Records) {
         const s3e = messageRecord.s3;
         const srcBucket = s3e.bucket.name;
         // Object key may have spaces or unicode non-ASCII characters.
-        const srcKey = decodeURIComponent(s3e.object.key.replace(/\+/g, " "));
+        const srcKey = decodeURIComponent(s3e.object.key.replace(/\+/g, " "));     
+        console.log('srcKey',srcKey);
+           
         try {
           const { name, email, message }: ContactDetails = {
             name: "The Photo Album",
